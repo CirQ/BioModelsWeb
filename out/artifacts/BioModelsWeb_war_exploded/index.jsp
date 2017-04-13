@@ -4,7 +4,7 @@
   Time: 上午12:34
 --%>
 
-<%@ taglib prefix="sql" uri="http://java.sun.com/jsp/jstl/sql" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/sql" prefix="sql"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 
 <sql:setDataSource var="ds" dataSource="jdbc/BioDB" />
@@ -35,12 +35,12 @@
                 <h3 class="margin-bottom:20 padding-top:20 border:top bold">Query Results</h3>
                 <table class="align:center">
                     <tr>
-                        <th>id</th>
-                        <th>initial_amount</th>
-                        <th>has_only_substance_units</th>
-                        <th>name</th>
-                        <th>metaid</th>
-                        <th>campartment</th>
+                        <th class="width:17">id</th>
+                        <th class="width:12">initial_amount</th>
+                        <th class="width:24">has_only_substance_units</th>
+                        <th class="width:17">name</th>
+                        <th class="width:14">metaid</th>
+                        <th class="width:16">campartment</th>
                     </tr>
                     <c:forEach var="row" items="${rs.rows}">
                     <tr>
