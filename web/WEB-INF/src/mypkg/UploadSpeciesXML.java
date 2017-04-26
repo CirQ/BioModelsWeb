@@ -84,7 +84,7 @@ public class UploadSpeciesXML extends HttpServlet {
                 request.setAttribute("message", "Upload Successfully");
             }
         } catch(Exception ex){
-            request.setAttribute("message", "Upload Error: " + ex.getMessage());
+            request.setAttribute("message", "Upload Error: " + ex);
         } finally {
             this.getServletContext().getRequestDispatcher("/message.jsp").forward(request, response);
             new File(filepath).delete();
@@ -102,13 +102,12 @@ public class UploadSpeciesXML extends HttpServlet {
                 Node node = nlist.item(i);
                 if(node.getNodeType() == Node.ELEMENT_NODE){
                     Element element = (Element)node;
-                    String id = element.getAttribute("id");
+                    String sid = element.getAttribute("id");
                     double initial_amount = Double.parseDouble(element.getAttribute("initialAmount"));
-                    boolean has_only_substance_units = element.getAttribute("hasOnlySubstanceUnits").equals("true");
                     String name = element.getAttribute("name");
                     String metaid = element.getAttribute("metaid");
                     String compartment = element.getAttribute("compartment");
-                    list.add(new Species(id, initial_amount, has_only_substance_units, name, metaid, compartment));
+                    list.add(new Species(sid, initial_amount, name, metaid, compartment));
                 }
             }
             return list;
@@ -116,35 +115,51 @@ public class UploadSpeciesXML extends HttpServlet {
             throw new XPathExpressionException("error file format as biomodel xml");
         }
     }
-    private void InsertSpeciesToDB(ArrayList<Species> list){
+
+    private void InsertSpeciesToDB(ArrayList<Species> list, String mid){
+        Connection con = null;
+        PreparedStatement stat = null;
         try {
-            Connection con = this.pool.getConnection();
-            Statement stat = con.createStatement();
-            String sql = "INSERT INTO species VALUES('%s', %.4f, %b, '%s', '%s', '%s')";
+            con = this.pool.getConnection();
+            stat = con.prepareStatement("INSERT INTO species VALUES(?, ?, ?, ?, ?, ?)");
             for (Species species : list) {
-                stat.executeUpdate(String.format(sql, species.getId(),
-                        species.getInitial_amount(), species.isHas_only_substance_units(),
-                        species.getName(), species.getMetaid(), species.getCompartment()));
+                stat.setString(1, species.getSid());
+                stat.setDouble(2, species.getInitial_amount());
+                stat.setString(3, species.getName());
+                stat.setString(4, species.getMetaid());
+                stat.setString(5, species.getCompartment());
+                stat.setString(6, mid);
+                stat.executeUpdate();
             }
-            stat.close();
-            con.close();
         } catch(SQLException ex){
             ex.printStackTrace();
+        } finally {
+            try { if (stat != null) stat.close(); if (con != null) con.close(); } catch (SQLException e){}
         }
     }
-    private void InsertFileToDB(String abspath){
+    private String InsertFileToDB(String abspath){
+        Connection con = null;
+        PreparedStatement stat = null;
+        String mid = "";
         try {
             File f = new File(abspath);
+            mid = f.getName().split("\\.")[0];
             FileInputStream fis = new FileInputStream(f);
-            Connection con = this.pool.getConnection();
-            PreparedStatement stat = con.prepareStatement("INSERT INTO files VALUES(?, ?);");
-            stat.setString(1, f.getName());
+            con = this.pool.getConnection();
+            stat = con.prepareStatement("INSERT INTO models VALUES(?, ?);");
+            stat.setString(1, mid);
             stat.setBinaryStream(2, fis, (int)f.length());
             stat.executeUpdate();
-            stat.close();
-            con.close();
         } catch(FileNotFoundException | SQLException ex){
             ex.printStackTrace();
+        } finally {
+            try{
+                if(stat != null) stat.close();
+                if(con != null) con.close();
+            } catch(SQLException e){
+            } finally {
+                return mid;
+            }
         }
     }
 
@@ -157,8 +172,8 @@ public class UploadSpeciesXML extends HttpServlet {
             doc.getDocumentElement().normalize();
 
             ArrayList<Species> list = this.getList(doc);
-            this.InsertSpeciesToDB(list);
-            this.InsertFileToDB(filename);
+            String mid = this.InsertFileToDB(filename);
+            this.InsertSpeciesToDB(list, mid);
         } catch(ParserConfigurationException | IOException piex){
             piex.printStackTrace();
         }

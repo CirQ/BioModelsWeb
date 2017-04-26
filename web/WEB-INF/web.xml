@@ -26,7 +26,7 @@
     </servlet>
     <servlet-mapping>
         <servlet-name>UpLoadSpeciesXML</servlet-name>
-        <url-pattern>/SpeciesXML/Upload</url-pattern>
+        <url-pattern>/Upload</url-pattern>
     </servlet-mapping>
 
 </web-app>
