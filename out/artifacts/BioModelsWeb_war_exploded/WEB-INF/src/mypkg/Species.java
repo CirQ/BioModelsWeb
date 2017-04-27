@@ -7,7 +7,6 @@ public class Species {
     private String sid = "";
     private double initial_amount = 0.0;
     private String name = "";
-    private String metaid = "";
     private String compartment = "";
 
     public String getSid() {
@@ -22,20 +21,15 @@ public class Species {
         return name;
     }
 
-    public String getMetaid() {
-        return metaid;
-    }
-
     public String getCompartment() {
         return compartment;
     }
 
 
-    public Species(String sid, double initial_amount, String name, String metaid, String compartment) {
+    public Species(String sid, double initial_amount, String name, String compartment) {
         this.sid = sid;
         this.initial_amount = initial_amount;
         this.name = name;
-        this.metaid = metaid;
         this.compartment = compartment;
     }
 }

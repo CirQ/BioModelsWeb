@@ -1,5 +1,6 @@
 package mypkg;
 
+import com.sun.org.apache.bcel.internal.generic.ARRAYLENGTH;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
@@ -9,6 +10,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import javax.lang.model.type.ArrayType;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.servlet.ServletException;
@@ -34,7 +36,7 @@ import java.util.List;
 /**
  * Created by cirq on 2017-04-12.
  */
-public class UploadSpeciesXML extends HttpServlet {
+public class UploadXML extends HttpServlet {
     private DataSource pool = null;
 
     @Override
@@ -84,30 +86,76 @@ public class UploadSpeciesXML extends HttpServlet {
                 request.setAttribute("message", "Upload Successfully");
             }
         } catch(Exception ex){
-            request.setAttribute("message", "Upload Error: " + ex);
+            request.setAttribute("message", "Upload Error: ");
+            String error = "<pre>" + ex.toString() + "</pre>";
+            StackTraceElement[] trace = ex.getStackTrace();
+            for (StackTraceElement s : trace)
+                error += "<pre>    at " + s + "</pre>";
+            request.setAttribute("complete_error", error);
         } finally {
             this.getServletContext().getRequestDispatcher("/message.jsp").forward(request, response);
             new File(filepath).delete();
         }
     }
 
+    private ArrayList<Reaction> getReactionList(Document doc) throws XPathExpressionException{
+        try{
+            XPath xpath = XPathFactory.newInstance().newXPath();
+            String path = "//listOfReactions/reaction";
+            NodeList nlist = (NodeList)xpath.evaluate(path, doc, XPathConstants.NODESET);
+            ArrayList<Reaction> list = new ArrayList<>();
+            for(int i = 0; i < nlist.getLength(); i++){
+                Node node = nlist.item(i);
+                if(node.getNodeType() == Node.ELEMENT_NODE){
+                    Element element = (Element)node;
+                    String rid = element.getAttribute("id");
+                    String name = element.getAttribute("name");
 
-    private ArrayList<Species> getList(Document doc) throws XPathExpressionException{
+                    NodeList lor = element.getElementsByTagName("listOfReactants");
+                    if(lor.getLength() > 0) lor = lor.item(0).getChildNodes();
+                    NodeList lop = element.getElementsByTagName("listOfProducts");
+                    if(lop.getLength() > 0) lop = lop.item(0).getChildNodes();
+                    String reactants = "@";
+                    String products = "@";
+                    for(int k = 0; k < lor.getLength(); k++) {
+                        Node n = lor.item(k);
+                        if(n.getNodeType() == Node.ELEMENT_NODE)
+                            reactants += (((Element)n).getAttribute("species") + "@");
+                    }
+                    for(int k = 0; k < lop.getLength(); k++) {
+                        Node n = lop.item(k);
+                        if(n.getNodeType() == Node.ELEMENT_NODE)
+                            products += (((Element)n).getAttribute("species") + "@");
+                    }
+
+                    list.add(new Reaction(rid, name, reactants, products));
+                }
+            }
+            return list;
+        } catch(XPathExpressionException xpex) {
+            throw new XPathExpressionException("error file format as biomodel xml");
+        }
+    }
+    private ArrayList<Species> getSpeciesList(Document doc) throws XPathExpressionException{
         try {
             XPath xpath = XPathFactory.newInstance().newXPath();
             String path = "//listOfSpecies/species";
-            NodeList nlist = (NodeList)xpath.compile(path).evaluate(doc, XPathConstants.NODESET);
+            NodeList nlist = (NodeList)xpath.evaluate(path, doc, XPathConstants.NODESET);
             ArrayList<Species> list = new ArrayList<>();
             for(int i = 0; i < nlist.getLength(); i++){
                 Node node = nlist.item(i);
                 if(node.getNodeType() == Node.ELEMENT_NODE){
                     Element element = (Element)node;
                     String sid = element.getAttribute("id");
-                    double initial_amount = Double.parseDouble(element.getAttribute("initialAmount"));
+                    String initial = element.getAttribute("initialAmount");
+                    if(initial.equals(""))
+                        initial = element.getAttribute("initialConcentration");
+                    double initial_amount = 0f;
+                    if(!initial.equals(""))
+                        initial_amount = Double.parseDouble(initial);
                     String name = element.getAttribute("name");
-                    String metaid = element.getAttribute("metaid");
                     String compartment = element.getAttribute("compartment");
-                    list.add(new Species(sid, initial_amount, name, metaid, compartment));
+                    list.add(new Species(sid, initial_amount, name, compartment));
                 }
             }
             return list;
@@ -116,27 +164,6 @@ public class UploadSpeciesXML extends HttpServlet {
         }
     }
 
-    private void InsertSpeciesToDB(ArrayList<Species> list, String mid){
-        Connection con = null;
-        PreparedStatement stat = null;
-        try {
-            con = this.pool.getConnection();
-            stat = con.prepareStatement("INSERT INTO species VALUES(?, ?, ?, ?, ?, ?)");
-            for (Species species : list) {
-                stat.setString(1, species.getSid());
-                stat.setDouble(2, species.getInitial_amount());
-                stat.setString(3, species.getName());
-                stat.setString(4, species.getMetaid());
-                stat.setString(5, species.getCompartment());
-                stat.setString(6, mid);
-                stat.executeUpdate();
-            }
-        } catch(SQLException ex){
-            ex.printStackTrace();
-        } finally {
-            try { if (stat != null) stat.close(); if (con != null) con.close(); } catch (SQLException e){}
-        }
-    }
     private String InsertFileToDB(String abspath){
         Connection con = null;
         PreparedStatement stat = null;
@@ -162,8 +189,51 @@ public class UploadSpeciesXML extends HttpServlet {
             }
         }
     }
+    private void InsertReactionToDB(ArrayList<Reaction> list, String mid){
+        Connection con = null;
+        PreparedStatement stat = null;
+        try {
+            con = this.pool.getConnection();
+            stat = con.prepareStatement("INSERT INTO reaction VALUES(?, ?, ?, ?, ?)");
+            for (Reaction reaction: list) {
+                stat.setString(1, reaction.getRid());
+                stat.setString(2, reaction.getName());
+                stat.setString(3, reaction.reactants);
+                stat.setString(4, reaction.products);
+                stat.setString(5, mid);
+                stat.executeUpdate();
+            }
+        } catch(SQLException ex){
+            ex.printStackTrace();
+        } finally {
+            try { if (stat != null) stat.close(); if (con != null) con.close(); } catch (SQLException e){}
+        }
+    }
+    private void InsertSpeciesToDB(ArrayList<Species> list, String mid){
+        Connection con = null;
+        PreparedStatement stat = null;
+        try {
+            con = this.pool.getConnection();
+            stat = con.prepareStatement("INSERT INTO species VALUES(?, ?, ?, ?, ?)");
+            for (Species species: list) {
+                stat.setString(1, species.getSid());
+                stat.setDouble(2, species.getInitial_amount());
+                stat.setString(3, species.getName());
+                stat.setString(4, species.getCompartment());
+                stat.setString(5, mid);
+                stat.executeUpdate();
+            }
+        } catch(SQLException ex){
+            ex.printStackTrace();
+        } finally {
+            try { if (stat != null) stat.close(); if (con != null) con.close(); } catch (SQLException e){}
+        }
+    }
 
     public void insertToDB(String filename) throws SAXException, XPathExpressionException{
+        String mid = "";
+        ArrayList<Reaction> rlist = null;
+        ArrayList<Species> slist = null;
         try{
             File input = new File(filename);
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -171,11 +241,16 @@ public class UploadSpeciesXML extends HttpServlet {
             Document doc = builder.parse(input);
             doc.getDocumentElement().normalize();
 
-            ArrayList<Species> list = this.getList(doc);
-            String mid = this.InsertFileToDB(filename);
-            this.InsertSpeciesToDB(list, mid);
+            rlist = this.getReactionList(doc);
+            slist = this.getSpeciesList(doc);
+            mid = this.InsertFileToDB(filename);
+            this.InsertReactionToDB(rlist, mid);
+            this.InsertSpeciesToDB(slist, mid);
         } catch(ParserConfigurationException | IOException piex){
             piex.printStackTrace();
+        } finally{
+            BioModelPainter bmp = new BioModelPainter(mid, rlist, slist);
+            new Thread(bmp).start();
         }
     }
 }

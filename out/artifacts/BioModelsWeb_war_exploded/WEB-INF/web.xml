@@ -12,21 +12,21 @@
     </resource-ref>
 
     <servlet>
-        <servlet-name>BookQuery</servlet-name>
-        <servlet-class>mypkg.BookQuery</servlet-class>
+        <servlet-name>UpLoadXML</servlet-name>
+        <servlet-class>mypkg.UploadXML</servlet-class>
     </servlet>
     <servlet-mapping>
-        <servlet-name>BookQuery</servlet-name>
-        <url-pattern>/bookquery</url-pattern>
-    </servlet-mapping>
-    
-    <servlet>
-        <servlet-name>UpLoadSpeciesXML</servlet-name>
-        <servlet-class>mypkg.UploadSpeciesXML</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>UpLoadSpeciesXML</servlet-name>
+        <servlet-name>UpLoadXML</servlet-name>
         <url-pattern>/Upload</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>ViewBioModel</servlet-name>
+        <servlet-class>mypkg.ViewBioModel</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ViewBioModel</servlet-name>
+        <url-pattern>/bm/*</url-pattern>
     </servlet-mapping>
 
 </web-app>
