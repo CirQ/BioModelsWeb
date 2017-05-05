@@ -1,6 +1,5 @@
 package mypkg;
 
-import com.sun.org.apache.bcel.internal.generic.ARRAYLENGTH;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
@@ -10,7 +9,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import javax.lang.model.type.ArrayType;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.servlet.ServletException;
@@ -249,7 +247,8 @@ public class UploadXML extends HttpServlet {
         } catch(ParserConfigurationException | IOException piex){
             piex.printStackTrace();
         } finally{
-            BioModelPainter bmp = new BioModelPainter(mid, rlist, slist);
+            String filepath = getServletContext().getRealPath("./") + File.separator + "graphics";
+            BioModelPainter bmp = new BioModelPainter(mid, rlist, slist, filepath);
             new Thread(bmp).start();
         }
     }

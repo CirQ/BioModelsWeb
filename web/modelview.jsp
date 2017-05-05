@@ -72,6 +72,7 @@
                 </table>
 
                 <h3 class="margin-top:20 bold">Graphic View</h3>
+                <img src="/BioModels/graphics/${model}.png" />
             </div>
             <div class="col:2 hidden">@</div>
         </div>
